@@ -1,0 +1,6 @@
+# Keep source files consistent on Windows, macOS, and Linux.
+* text=auto eol=lf
+
+# Windows command files still need Windows line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
