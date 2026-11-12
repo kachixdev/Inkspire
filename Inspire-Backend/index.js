@@ -6,7 +6,7 @@ import userRoutes from './Routes/userRoutes.js'
 import postRoutes from './Routes/postRoutes.js'
 import commentRoutes from './Routes/commentRoutes.js'
 import cookieParser from 'cookie-parser'
-// import rateLimit from 'express-rate-limit'
+import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'
 import cors from 'cors'
 let app = express()
@@ -27,14 +27,14 @@ mongoose.connect(process.env.MONGODB_URI)
 .then(()=>(console.log('MongoDB connected successfully')))
 .catch((err)=>console.log(`Error while connecting : ${err}`))
 
-// const limit = rateLimit({
-//     windowMs: 15 * 60 * 1000, // 15 minutes
-//     limit: 5, // limit each IP to 5 requests per windowMs
-//     // max: 100, // limit each IP to 100 requests per windowMs
-//     message: 'Too many requests, try again later.'
-// });
+const limit = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 5, // limit each IP to 5 requests per windowMs
+    // max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Too many requests, try again later.'
+});
   
-// app.use(limit)
+app.use(limit)
 app.use('/api/users', userRoutes)
 app.use('/api/posts', postRoutes)
 app.use('/api/comments', commentRoutes)
