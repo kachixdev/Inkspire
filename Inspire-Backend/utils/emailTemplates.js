@@ -95,3 +95,49 @@ export function createPasswordResetEmail({ resetUrl }) {
         text: `Reset your Inkspire password\n\nWe received a request to reset your password. Use this link within 15 minutes:\n${resetUrl}\n\nIf you did not request this, you can ignore this email.`
     }
 }
+
+export function createPasswordChangedEmail({ firstName, appUrl }) {
+    const safeFirstName = escapeHtml(firstName || 'writer')
+    const resetUrl = new URL('/forgot-password', appUrl).toString()
+
+    return {
+        subject: 'Your Inkspire password was changed',
+        html: emailLayout({
+            preheader: 'A security update for your Inkspire account.',
+            eyebrow: 'Account security',
+            title: 'Your password was updated.',
+            content: `<p style="margin:0 0 16px;">Hi ${safeFirstName},</p>
+                <p style="margin:0;">The password for your Inkspire account was just changed. If you made this change, no further action is needed.</p>`,
+            buttonLabel: 'Reset my password',
+            buttonUrl: resetUrl,
+            footer: 'If you did not change your password, reset it now and contact the Inkspire team.'
+        }),
+        text: `Your Inkspire password was changed\n\nHi ${firstName || 'writer'},\n\nThe password for your Inkspire account was just changed. If you did not make this change, reset it immediately: ${resetUrl}`
+    }
+}
+
+export function createCommentNotificationEmail({
+    commenterName,
+    postTitle,
+    commentText,
+    postUrl,
+}) {
+    const safeCommenterName = escapeHtml(commenterName || 'A reader')
+    const safePostTitle = escapeHtml(postTitle || 'your story')
+    const safeComment = escapeHtml(String(commentText || '').slice(0, 800))
+
+    return {
+        subject: 'A new comment on your Inkspire story',
+        html: emailLayout({
+            preheader: 'Someone joined the conversation on your story.',
+            eyebrow: 'New comment',
+            title: 'Your story sparked a conversation.',
+            content: `<p style="margin:0 0 16px;">${safeCommenterName} commented on <strong>${safePostTitle}</strong>:</p>
+                <blockquote style="margin:0;padding:16px 20px;border-left:3px solid #655beb;background:#f8f8fb;color:#555f75;">${safeComment}</blockquote>`,
+            buttonLabel: 'Read the conversation',
+            buttonUrl: postUrl,
+            footer: 'You received this message because you authored the story.'
+        }),
+        text: `${commenterName || 'A reader'} commented on "${postTitle || 'your story'}":\n\n${String(commentText || '').slice(0, 800)}\n\nRead the conversation: ${postUrl}`
+    }
+}

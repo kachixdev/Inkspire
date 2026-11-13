@@ -8,30 +8,42 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { sendEmail } from '../utils/mailer.js'
-import { createPasswordResetEmail, createWelcomeEmail } from '../utils/emailTemplates.js'
+import {
+    createPasswordChangedEmail,
+    createPasswordResetEmail,
+    createWelcomeEmail
+} from '../utils/emailTemplates.js'
 import client from '../config/redis.js';
 
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id)
 
 const getEmailDeliveryCode = (error) => {
-    if (error?.code === 'EMAIL_CONFIGURATION_MISSING') {
+    if (['EMAIL_CONFIGURATION_MISSING', 'EMAIL_CONFIGURATION_INVALID'].includes(error?.code)) {
         return 'EMAIL_CONFIGURATION_MISSING'
     }
 
-    if (error?.code === 'EAUTH' || [534, 535].includes(error?.responseCode) || error?.statusCode === 401) {
+    if (error?.code === 'EMAIL_AUTH_FAILED') {
         return 'EMAIL_AUTH_FAILED'
     }
 
-    if (['ETIMEDOUT', 'ESOCKET', 'ECONNECTION', 'ECONNREFUSED', 'ENOTFOUND', 'EHOSTUNREACH'].includes(error?.code)) {
+    if (error?.code === 'EMAIL_CONNECTION_FAILED') {
         return 'EMAIL_CONNECTION_FAILED'
     }
 
-    if (Number.isInteger(error?.statusCode) || Number.isInteger(error?.responseCode)) {
+    if (['EMAIL_PROVIDER_REJECTED', 'EMAIL_TOKEN_STORAGE_FAILED'].includes(error?.code)) {
         return 'EMAIL_PROVIDER_REJECTED'
     }
 
     return 'EMAIL_DELIVERY_FAILED'
+}
+
+const getFrontendUrl = () => (
+    process.env.FRONTEND_URL || 'https://inkspireblog.vercel.app'
+).split(',')[0].trim().replace(/\/+$/, '')
+
+const logEmailFailure = (label, error) => {
+    console.error(label, { code: getEmailDeliveryCode(error) })
 }
 
 const createUser = async (req, res) => {
@@ -45,9 +57,7 @@ const createUser = async (req, res) => {
         let hashedPassword = await bcrypt.hash(password, 10)
         await User.create({ firstName, lastName, email, password: hashedPassword })
         await client.del("admin-users-v2")
-        const appUrl = (
-            process.env.FRONTEND_URL || 'https://inkspireblog.vercel.app'
-        ).split(',')[0].trim().replace(/\/+$/, '')
+        const appUrl = getFrontendUrl()
 
         try {
             await sendEmail({
@@ -56,7 +66,7 @@ const createUser = async (req, res) => {
             })
             return res.status(201).json({ message: "signup successful", emailSent: true })
         } catch (emailError) {
-            console.error('Welcome email delivery failed:', emailError)
+            logEmailFailure('Welcome email delivery failed:', emailError)
             return res.status(201).json({
                 message: `Your account was created, but the welcome email could not be sent. You can still sign in. Reference: ${getEmailDeliveryCode(emailError)}.`,
                 emailSent: false
@@ -134,6 +144,7 @@ const updateUser = async (req, res) => {
 
 const updateProfile = async (req, res) => {
     let uploadedAvatarPath
+    let passwordChanged = false
     try {
         const user = await User.findById(req.user.id)
         if (!user) return res.status(404).json({ message: "user not found" })
@@ -171,6 +182,7 @@ const updateProfile = async (req, res) => {
                 return res.status(400).json({ message: "current password is incorrect" })
             }
             user.password = await bcrypt.hash(newPassword, 10)
+            passwordChanged = true
         }
 
         const previousImage = user.image
@@ -217,7 +229,27 @@ const updateProfile = async (req, res) => {
 
         const safeUser = user.toObject()
         delete safeUser.password
-        res.status(200).json({ message: "profile updated successfully", user: safeUser })
+        let passwordNoticeSent
+        if (passwordChanged) {
+            try {
+                await sendEmail({
+                    to: user.email,
+                    ...createPasswordChangedEmail({
+                        firstName: user.firstName,
+                        appUrl: getFrontendUrl()
+                    })
+                })
+                passwordNoticeSent = true
+            } catch (emailError) {
+                passwordNoticeSent = false
+                logEmailFailure('Password change notification failed:', emailError)
+            }
+        }
+        res.status(200).json({
+            message: "profile updated successfully",
+            user: safeUser,
+            ...(passwordChanged ? { passwordNoticeSent } : {})
+        })
     } catch (error) {
         if (uploadedAvatarPath) {
             try {
@@ -300,7 +332,7 @@ const forgotPassword = async (req, res) => {
                 ...createPasswordResetEmail({ resetUrl })
             })
         } catch (emailError) {
-            console.error('Password reset email delivery failed:', emailError)
+            logEmailFailure('Password reset email delivery failed:', emailError)
             return res.status(503).json({
                 message: `Unable to send a password reset email right now. Please try again later. Reference: ${getEmailDeliveryCode(emailError)}.`
             })
@@ -321,7 +353,24 @@ const resetPassword = async (req, res) => {
         if (!checkUser) return res.status(404).json({ message: "user not found" })
         checkUser.password = await bcrypt.hash(newPassword, 10)
         await checkUser.save()
-        res.status(200).json({ message: "password reset successful" })
+        let passwordNoticeSent
+        try {
+            await sendEmail({
+                to: checkUser.email,
+                ...createPasswordChangedEmail({
+                    firstName: checkUser.firstName,
+                    appUrl: getFrontendUrl()
+                })
+            })
+            passwordNoticeSent = true
+        } catch (emailError) {
+            passwordNoticeSent = false
+            logEmailFailure('Password reset security notification failed:', emailError)
+        }
+        res.status(200).json({
+            message: "password reset successful",
+            passwordNoticeSent
+        })
     } catch (error) {
        return res.status(500).json({ message: error.message })
     }

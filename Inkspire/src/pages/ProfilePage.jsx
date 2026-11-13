@@ -23,6 +23,7 @@ function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [commentsError, setCommentsError] = useState('');
+  const [profileFeedback, setProfileFeedback] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deletingBlogId, setDeletingBlogId] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -214,6 +215,11 @@ function ProfilePage() {
         </header>
 
         {error && <p role="alert" className="mt-5 text-sm text-red-600">{error}</p>}
+        {profileFeedback && (
+          <p role="status" className="mt-4 text-sm text-ink/65">
+            {profileFeedback}
+          </p>
+        )}
         {commentsError && (
           <p role="alert" className="mt-4 text-sm text-red-600">{commentsError}</p>
         )}
@@ -364,8 +370,17 @@ function ProfilePage() {
         <EditProfileModal
           user={profileUser}
           onClose={() => setIsEditingProfile(false)}
-          onSave={(updatedUser) => {
+          onSave={(updatedUser, passwordNoticeSent) => {
             setProfileUser(updatedUser);
+            if (passwordNoticeSent === false) {
+              setProfileFeedback(
+                'Your password was changed, but the security email could not be sent.',
+              );
+            } else if (passwordNoticeSent === true) {
+              setProfileFeedback('Your password was changed and a security email was sent.');
+            } else {
+              setProfileFeedback('');
+            }
             setIsEditingProfile(false);
           }}
         />

@@ -5,6 +5,7 @@ import mongoose from 'mongoose'
 import userRoutes from './Routes/userRoutes.js'
 import postRoutes from './Routes/postRoutes.js'
 import commentRoutes from './Routes/commentRoutes.js'
+import gmailOAuthRoutes from './Routes/gmailOAuthRoutes.js'
 import cookieParser from 'cookie-parser'
 import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'
@@ -48,6 +49,7 @@ const apiLimit = createRateLimiter(100, 'Too many API requests. Try again shortl
 const loginLimit = createRateLimiter(5, 'Too many login attempts. Try again in 15 minutes.')
 const signupLimit = createRateLimiter(5, 'Too many signup attempts. Try again in 15 minutes.')
 const passwordResetLimit = createRateLimiter(5, 'Too many password reset attempts. Try again in 15 minutes.')
+const gmailOAuthLimit = createRateLimiter(10, 'Too many Gmail authorization requests. Try again shortly.')
 
 app.post('/api/users/login', loginLimit)
 app.post('/api/users/signup', signupLimit)
@@ -57,6 +59,7 @@ app.use('/api', apiLimit)
 app.use('/api/users', userRoutes)
 app.use('/api/posts', postRoutes)
 app.use('/api/comments', commentRoutes)
+app.use('/api/admin/gmail', gmailOAuthLimit, gmailOAuthRoutes)
 app.listen(port,()=>{
     console.log(`Server is running on port ${port}`)
 })

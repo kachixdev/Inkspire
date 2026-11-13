@@ -26,13 +26,17 @@ function ResetPasswordPage() {
 
     setSaving(true);
     try {
-      await apiRequest('/users/reset-password', {
+      const response = await apiRequest('/users/reset-password', {
         method: 'POST',
         body: JSON.stringify({ token, newPassword: form.password }),
       });
       navigate('/signin', {
         replace: true,
-        state: { message: 'Your password has been reset. Please sign in.' },
+        state: {
+          message: response.passwordNoticeSent === false
+            ? 'Your password was reset, but the security email could not be sent.'
+            : 'Your password has been reset. Please sign in.',
+        },
       });
     } catch (requestError) {
       console.error('Error resetting password:', requestError);

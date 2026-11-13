@@ -8,12 +8,18 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Avatar from "../components/common/Avatar";
 import DeleteConfirmation from "../components/common/DeleteConfirmation";
 import RelativeTime from "../components/common/RelativeTime";
 import UserLink from "../components/common/UserLink";
-import { apiRequest, getAuthor, getCurrentUser, getId } from "../utils/api";
+import {
+  apiRequest,
+  getApiUrl,
+  getAuthor,
+  getCurrentUser,
+  getId,
+} from "../utils/api";
 
 function StatCard({ icon: Icon, label, value, note, onClick }) {
   return (
@@ -55,6 +61,16 @@ function formatJoinDate(user) {
 
 function AdminPage() {
   const currentUser = getCurrentUser();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [gmailFeedback] = useState(() => {
+    const result = searchParams.get("gmail");
+    if (!result) {
+      return "";
+    }
+    return result === "connected"
+      ? "Gmail was connected successfully."
+      : "Gmail could not be connected. Check the server setup and try again.";
+  });
   const [users, setUsers] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [comments, setComments] = useState([]);
@@ -70,6 +86,7 @@ function AdminPage() {
   const [usersError, setUsersError] = useState("");
   const [blogsError, setBlogsError] = useState("");
   const [commentsError, setCommentsError] = useState("");
+  const [gmailStatus, setGmailStatus] = useState("checking");
   const filteredUsers = users.filter((user) => {
     const matchesSearch = `${user.firstName} ${user.lastName} ${user.email}`
       .toLowerCase()
@@ -144,6 +161,30 @@ function AdminPage() {
 
     loadComments();
   }, []);
+
+  useEffect(() => {
+    async function loadGmailStatus() {
+      try {
+        const status = await apiRequest("/admin/gmail/status");
+        setGmailStatus(status.connected ? "connected" : "disconnected");
+      } catch (error) {
+        console.error("Error checking Gmail connection:", error);
+        setGmailStatus("unavailable");
+      }
+    }
+
+    loadGmailStatus();
+  }, []);
+
+  useEffect(() => {
+    if (!searchParams.has("gmail")) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("gmail");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   async function saveEdit(event) {
     event.preventDefault();
@@ -249,6 +290,32 @@ function AdminPage() {
               <p className="text-xs text-ink/40">Super admin</p>
             </div>
           </div>
+        </div>
+
+        <div className="mt-7 flex flex-col justify-between gap-4 rounded-3xl border border-ink/10 bg-white p-5 sm:flex-row sm:items-center">
+          <div>
+            <p className="font-semibold">Gmail email delivery</p>
+            <p className="mt-1 text-sm text-ink/55">
+              {gmailStatus === "checking"
+                ? "Checking connection..."
+                : gmailStatus === "connected"
+                  ? "Gmail authorization is saved. Account emails use the Gmail API."
+                  : gmailStatus === "disconnected"
+                    ? "Not connected. Connect the Gmail account used to send emails."
+                    : "Connection status is unavailable."}
+            </p>
+            {gmailFeedback && (
+              <p role="status" className="mt-2 text-sm text-ink/70">
+                {gmailFeedback}
+              </p>
+            )}
+          </div>
+          <a
+            href={getApiUrl("/admin/gmail/oauth/start")}
+            className="btn-primary shrink-0"
+          >
+            {gmailStatus === "connected" ? "Reconnect Gmail" : "Connect Gmail"}
+          </a>
         </div>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

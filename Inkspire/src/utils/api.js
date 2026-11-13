@@ -5,6 +5,11 @@ const API_URL = (
 ).replace(/\/+$/, "");
 const API_ORIGIN = API_URL.startsWith("http") ? new URL(API_URL).origin : "";
 
+export function getApiUrl(path) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${API_URL}${normalizedPath}`;
+}
+
 export async function apiRequest(path, options = {}) {
   const headers = { ...options.headers };
   const isFormData =
@@ -13,7 +18,7 @@ export async function apiRequest(path, options = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(getApiUrl(path), {
     ...options,
     headers,
     credentials: "include",

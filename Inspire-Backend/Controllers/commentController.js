@@ -1,13 +1,45 @@
 import Comment from "../Models/Comment.js";
+import Post from "../Models/Post.js";
 import User from "../Models/User.js";
+import { sendEmail } from "../utils/mailer.js";
+import { createCommentNotificationEmail } from "../utils/emailTemplates.js";
+
+const getFrontendUrl = () => (
+    process.env.FRONTEND_URL || "https://inkspireblog.vercel.app"
+).split(",")[0].trim().replace(/\/+$/, "");
 
 const createComment = async (req, res) => {
     try {
         let { text , post} = req.body
         if (!text || !post ) return res.status(400).json({ message: "please fill all the fields" })
+       const postDocument = await Post.findById(post).populate("author", "firstName lastName email")
        const comment =  await Comment.create({ text, author: req.user.id, post })
         await User.findByIdAndUpdate(req.user.id, { $push: { comments: comment._id } })
         await comment.populate("author", "firstName lastName")
+
+        const postAuthor = postDocument?.author
+        if (
+            postAuthor?.email &&
+            String(postAuthor._id) !== String(req.user.id)
+        ) {
+            try {
+                await sendEmail({
+                    to: postAuthor.email,
+                    ...createCommentNotificationEmail({
+                        commenterName: comment.author
+                            ? `${comment.author.firstName} ${comment.author.lastName}`.trim()
+                            : "A reader",
+                        postTitle: postDocument.title,
+                        commentText: comment.text,
+                        postUrl: `${getFrontendUrl()}/blogs/${encodeURIComponent(postDocument._id)}`
+                    })
+                })
+            } catch (emailError) {
+                console.error("Comment notification delivery failed:", {
+                    code: emailError?.code || "EMAIL_DELIVERY_FAILED"
+                })
+            }
+        }
         res.status(201).json(comment)
     } catch (error) {
         res.status(500).json({ message: "something went wrong" })

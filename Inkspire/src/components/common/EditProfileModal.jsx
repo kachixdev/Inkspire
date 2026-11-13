@@ -101,7 +101,7 @@ function EditProfileModal({ user, onClose, onSave }) {
 
       localStorage.setItem('currentUser', JSON.stringify(response.user));
       window.dispatchEvent(new Event('auth-change'));
-      onSave(response.user);
+      onSave(response.user, response.passwordNoticeSent);
     } catch (requestError) {
       console.error('Error updating profile:', requestError);
       setError(requestError.message || 'Could not update your profile.');
