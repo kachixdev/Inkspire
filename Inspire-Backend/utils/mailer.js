@@ -32,7 +32,9 @@ async function sendWithResend({ to, subject, html, text }) {
     const responseBody = await response.text()
 
     if (!response.ok) {
-        throw new Error(`Resend rejected the email (${response.status}): ${responseBody.slice(0, 500)}`)
+        const error = new Error(`Resend rejected the email (${response.status}): ${responseBody.slice(0, 500)}`)
+        error.statusCode = response.status
+        throw error
     }
 
     return responseBody ? JSON.parse(responseBody) : {}

@@ -14,6 +14,22 @@ import client from '../config/redis.js';
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id)
 
+const getEmailDeliveryCode = (error) => {
+    if (error?.code === 'EAUTH' || [534, 535].includes(error?.responseCode)) {
+        return 'EMAIL_AUTH_FAILED'
+    }
+
+    if (['ETIMEDOUT', 'ESOCKET', 'ECONNECTION', 'ECONNREFUSED', 'ENOTFOUND', 'EHOSTUNREACH'].includes(error?.code)) {
+        return 'EMAIL_CONNECTION_FAILED'
+    }
+
+    if (Number.isInteger(error?.statusCode) || Number.isInteger(error?.responseCode)) {
+        return 'EMAIL_PROVIDER_REJECTED'
+    }
+
+    return 'EMAIL_DELIVERY_FAILED'
+}
+
 const createUser = async (req, res) => {
     try {
         let { firstName, lastName, email, password } = req.body
@@ -38,7 +54,7 @@ const createUser = async (req, res) => {
         } catch (emailError) {
             console.error('Welcome email delivery failed:', emailError)
             return res.status(201).json({
-                message: "Your account was created, but the welcome email could not be sent. You can still sign in.",
+                message: `Your account was created, but the welcome email could not be sent. You can still sign in. Reference: ${getEmailDeliveryCode(emailError)}.`,
                 emailSent: false
             })
         }
@@ -282,7 +298,7 @@ const forgotPassword = async (req, res) => {
         } catch (emailError) {
             console.error('Password reset email delivery failed:', emailError)
             return res.status(503).json({
-                message: 'Unable to send a password reset email right now. Please try again later.'
+                message: `Unable to send a password reset email right now. Please try again later. Reference: ${getEmailDeliveryCode(emailError)}.`
             })
         }
 
