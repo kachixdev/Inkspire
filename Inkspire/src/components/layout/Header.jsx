@@ -1,13 +1,15 @@
 import { Menu, Moon, PenLine, Sun, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { getCurrentUser } from '../../utils/api';
+import { apiRequest, getCurrentUser } from '../../utils/api';
 
 const navClass = ({ isActive }) => `rounded-full px-4 py-2 text-sm font-medium transition ${isActive ? 'bg-white text-coral shadow-sm' : 'text-ink/55 hover:bg-white/70 hover:text-ink'}`;
 
 function Header() {
   const [open, setOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(getCurrentUser);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => {
     let savedTheme;
@@ -30,12 +32,26 @@ function Header() {
     return () => window.removeEventListener('auth-change', updateUser);
   }, []);
 
-  function signOut() {
-    localStorage.removeItem('currentUser');
-    setCurrentUser(null);
-    setOpen(false);
-    window.dispatchEvent(new Event('auth-change'));
-    navigate('/');
+  async function signOut() {
+    if (signingOut) {
+      return;
+    }
+
+    setSigningOut(true);
+    setSignOutError('');
+    try {
+      await apiRequest('/users/logout', { method: 'POST' });
+      localStorage.removeItem('currentUser');
+      setCurrentUser(null);
+      setOpen(false);
+      window.dispatchEvent(new Event('auth-change'));
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setSignOutError(error.message || 'Unable to sign out. Please try again.');
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   function toggleTheme() {
@@ -85,8 +101,14 @@ function Header() {
         <div className="hidden items-center gap-3 md:flex">
           {themeToggle}
           {currentUser ? (
-            <button type="button" onClick={signOut} className="text-sm font-semibold">
-              Sign out
+            <button
+              type="button"
+              onClick={signOut}
+              disabled={signingOut}
+              aria-busy={signingOut}
+              className="text-sm font-semibold disabled:opacity-50"
+            >
+              {signingOut ? 'Signing out...' : 'Sign out'}
             </button>
           ) : (
             <>
@@ -108,8 +130,14 @@ function Header() {
         <div className="page-shell flex flex-col gap-5 border-t border-ink/10 py-5 md:hidden">
           {links}
           {currentUser ? (
-            <button type="button" onClick={signOut} className="text-left text-sm font-semibold">
-              Sign out
+            <button
+              type="button"
+              onClick={signOut}
+              disabled={signingOut}
+              aria-busy={signingOut}
+              className="text-left text-sm font-semibold disabled:opacity-50"
+            >
+              {signingOut ? 'Signing out...' : 'Sign out'}
             </button>
           ) : (
             <>
@@ -118,6 +146,11 @@ function Header() {
             </>
           )}
         </div>
+      )}
+      {signOutError && (
+        <p role="alert" className="page-shell pb-3 text-right text-sm text-red-600">
+          {signOutError}
+        </p>
       )}
     </header>
   );

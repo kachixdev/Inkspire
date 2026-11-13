@@ -276,7 +276,7 @@ const login = async (req,res)=> {
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            sameSite: 'lax',
             path: '/',
             maxAge: 60 * 60 * 1000 //1 hour
         })
@@ -287,6 +287,15 @@ const login = async (req,res)=> {
         res.status(500).json({ message: "something went wrong" })
         console.log(error)
     }
+}
+const logout = (req, res) => {
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/'
+    })
+    res.status(200).json({ message: 'logout successful' })
 }
 const forgotPassword = async (req, res) => {
     try {
@@ -336,4 +345,4 @@ const resetPassword = async (req, res) => {
     }
 }
 
-export { createUser, getAllUsers, getOneUser, updateUser, updateProfile, deleteUser, login, forgotPassword, resetPassword }
+export { createUser, getAllUsers, getOneUser, updateUser, updateProfile, deleteUser, login, logout, forgotPassword, resetPassword }

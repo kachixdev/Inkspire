@@ -7,6 +7,7 @@ function SignInPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -16,6 +17,9 @@ function SignInPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    setSigningIn(true);
+    setError('');
+
     try {
       const data = await apiRequest('/users/login', {
         method: 'POST',
@@ -33,6 +37,8 @@ function SignInPage() {
     } catch (error) {
       console.error('Error signing in:', error);
       setError(error.message || 'Unable to sign in. Please try again.');
+    } finally {
+      setSigningIn(false);
     }
   }
 
@@ -69,6 +75,7 @@ function SignInPage() {
               placeholder="you@example.com"
               value={form.email}
               onChange={handleChange}
+              disabled={signingIn}
             />
           </div>
           <div>
@@ -83,12 +90,14 @@ function SignInPage() {
                 placeholder="Your password"
                 value={form.password}
                 onChange={handleChange}
+                disabled={signingIn}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-3.5 text-ink/40"
                 aria-label="Show password"
+                disabled={signingIn}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -102,8 +111,8 @@ function SignInPage() {
               </Link>
             </div>
           </div>
-          <button className="btn-primary w-full" type="submit">
-            Sign in <ArrowRight size={17} />
+          <button className="btn-primary w-full" type="submit" disabled={signingIn}>
+            {signingIn ? 'Signing in...' : 'Sign in'} <ArrowRight size={17} />
           </button>
         </form>
         <p className="mt-7 text-center text-sm text-ink/55">
