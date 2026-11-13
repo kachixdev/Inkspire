@@ -3,14 +3,7 @@ import { afterEach, beforeEach, test } from 'node:test'
 import { sendEmail } from './mailer.js'
 
 const originalFetch = globalThis.fetch
-const envKeys = [
-    'GMAIL_CLIENT_ID',
-    'GMAIL_CLIENT_SECRET',
-    'GMAIL_REFRESH_TOKEN',
-    'EMAIL_USER',
-    'EMAIL_PASS',
-    'RESEND_API_KEY'
-]
+const envKeys = ['RESEND_API_KEY', 'EMAIL_FROM']
 const originalEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]))
 
 beforeEach(() => {
@@ -25,23 +18,14 @@ afterEach(() => {
     }
 })
 
-test('sends multipart email through Gmail API ahead of a configured Resend key', async () => {
-    process.env.GMAIL_CLIENT_ID = 'client-id'
-    process.env.GMAIL_CLIENT_SECRET = 'client-secret'
-    process.env.GMAIL_REFRESH_TOKEN = 'refresh-token'
-    process.env.EMAIL_USER = 'inkspire@example.com'
-    process.env.RESEND_API_KEY = 'unused-resend-key'
+test('sends account email through the Resend HTTPS API', async () => {
+    process.env.RESEND_API_KEY = 'test-resend-key'
+    process.env.EMAIL_FROM = 'Inkspire <hello@example.com>'
 
-    const requests = []
+    let request
     globalThis.fetch = async (url, options) => {
-        requests.push({ url, options })
-        if (url === 'https://oauth2.googleapis.com/token') {
-            return new Response(JSON.stringify({ access_token: 'access-token' }), { status: 200 })
-        }
-        if (url === 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send') {
-            return new Response(JSON.stringify({ id: 'gmail-message-id' }), { status: 200 })
-        }
-        throw new Error(`Unexpected request: ${url}`)
+        request = { url, options }
+        return new Response(JSON.stringify({ id: 'resend-message-id' }), { status: 200 })
     }
 
     const result = await sendEmail({
@@ -51,24 +35,21 @@ test('sends multipart email through Gmail API ahead of a configured Resend key',
         html: '<p>Choose a new password.</p>'
     })
 
-    assert.equal(result.id, 'gmail-message-id')
-    assert.equal(requests.length, 2)
-    assert.match(requests[0].options.body.toString(), /grant_type=refresh_token/)
-    assert.equal(requests[1].options.headers.Authorization, 'Bearer access-token')
-
-    const { raw } = JSON.parse(requests[1].options.body)
-    const mimeMessage = Buffer.from(raw, 'base64url').toString('utf8')
-    assert.match(mimeMessage, /From: Inkspire <inkspire@example\.com>/)
-    assert.match(mimeMessage, /To: writer@example\.com/)
-    assert.match(mimeMessage, /Content-Type: text\/plain; charset=UTF-8/)
-    assert.match(mimeMessage, /Content-Type: text\/html; charset=UTF-8/)
-    assert.match(mimeMessage, /Q2hvb3NlIGEgbmV3IHBhc3N3b3JkLg==/)
-    assert.match(mimeMessage, /PHA\+Q2hvb3NlIGEgbmV3IHBhc3N3b3JkLjwvcD4=/)
+    assert.equal(result.id, 'resend-message-id')
+    assert.equal(request.url, 'https://api.resend.com/emails')
+    assert.equal(request.options.method, 'POST')
+    assert.equal(request.options.headers.Authorization, 'Bearer test-resend-key')
+    assert.deepEqual(JSON.parse(request.options.body), {
+        from: 'Inkspire <hello@example.com>',
+        to: ['writer@example.com'],
+        subject: 'Reset your Inkspire password',
+        text: 'Choose a new password.',
+        html: '<p>Choose a new password.</p>'
+    })
 })
 
-test('does not silently fall back when Gmail API OAuth configuration is incomplete', async () => {
-    process.env.GMAIL_CLIENT_ID = 'client-id'
-    process.env.RESEND_API_KEY = 'unused-resend-key'
+test('requires a Resend API key and verified sender before sending', async () => {
+    process.env.RESEND_API_KEY = 'test-resend-key'
     let requestCount = 0
     globalThis.fetch = async () => {
         requestCount += 1
@@ -82,7 +63,23 @@ test('does not silently fall back when Gmail API OAuth configuration is incomple
             text: 'Body',
             html: '<p>Body</p>'
         }),
-        /GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, EMAIL_USER/
+        /EMAIL_FROM/
     )
     assert.equal(requestCount, 0)
+})
+
+test('surfaces Resend API rejection status', async () => {
+    process.env.RESEND_API_KEY = 'test-resend-key'
+    process.env.EMAIL_FROM = 'Inkspire <hello@example.com>'
+    globalThis.fetch = async () => new Response('{"message":"Invalid API key"}', { status: 401 })
+
+    await assert.rejects(
+        sendEmail({
+            to: 'writer@example.com',
+            subject: 'Subject',
+            text: 'Body',
+            html: '<p>Body</p>'
+        }),
+        (error) => error.statusCode === 401 && /Resend rejected the email/.test(error.message)
+    )
 })

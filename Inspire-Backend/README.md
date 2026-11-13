@@ -4,20 +4,14 @@
 
 Configure email variables in the Render service's Environment settings. Do not commit credentials.
 
-### Gmail API (recommended for Render Free)
+### Resend (recommended for Render Free)
 
-Render Free blocks outbound SMTP ports `25`, `465`, and `587`, so Gmail SMTP cannot send from a Free web service. Use the Gmail API over HTTPS instead:
+Render Free blocks outbound SMTP ports `25`, `465`, and `587`. Resend sends over HTTPS, so it works without Gmail OAuth or SMTP credentials:
 
-- Enable the Gmail API in a Google Cloud project and configure OAuth consent.
-- Create OAuth credentials and generate an offline refresh token with the `https://www.googleapis.com/auth/gmail.send` scope. If the OAuth consent screen remains in testing mode, Google can expire refresh tokens after seven days.
-- Set `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, and `GMAIL_REFRESH_TOKEN` in Render.
-- Set `EMAIL_USER` to the Gmail account authorized by those credentials. Gmail API messages use this account as the sender.
+- Create a Resend account, verify a domain you control, and create an API key.
+- Set `RESEND_API_KEY` in the Render service's Environment settings.
+- Set `EMAIL_FROM` to a sender address on that verified domain, such as `Inkspire <hello@your-domain.com>`.
 
-When all Gmail API settings are present, the backend uses the Gmail API before any other configured provider. Gmail API messages use `EMAIL_USER` as the sender; `EMAIL_FROM` is ignored for this provider.
-
-### Other providers
-
-- Resend can be used by setting `RESEND_API_KEY` and `EMAIL_FROM` to a sender address on a domain verified with Resend.
-- If neither Gmail API OAuth nor Resend is configured, the backend uses Gmail SMTP with `EMAIL_USER` and `EMAIL_PASS` (a Google App Password). Optional SMTP overrides are `SMTP_HOST`, `SMTP_PORT`, and `SMTP_SECURE`. Render Free blocks this SMTP fallback.
+Signup welcome messages and password-reset links both use the Resend API. Delivery fails with a configuration error if the API key or sender is missing; a valid API key and verified sending domain are required for delivery to users.
 
 Set `FRONTEND_URL` to the deployed frontend origin so welcome and password-reset links point to the right site. See `.env.example` for the variable names.
