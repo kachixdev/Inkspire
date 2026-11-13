@@ -15,7 +15,7 @@ let port = process.env.PORT || 9090
 app.use(helmet())
 app.use('/uploads', helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }))
 app.use(cors({
-    origin:'http://localhost:5173',
+    origin:'https://inkspireblog.vercel.app',
     credentials:true
 }))
 app.use(express.static('src'))
