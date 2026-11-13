@@ -24,11 +24,18 @@ function SignUpPage() {
     setError("");
 
     try {
-      await apiRequest("/users/signup", {
+      const data = await apiRequest("/users/signup", {
         method: "POST",
         body: JSON.stringify(form),
       });
-      navigate("/signin", { state: { message: "Account created. Please sign in." } });
+      navigate("/signin", {
+        state: {
+          message: data.emailSent === false
+            ? data.message
+            : "Account created. Please sign in.",
+          tone: data.emailSent === false ? "warning" : "success",
+        },
+      });
     } catch (error) {
       console.error("Error creating account:", error);
       setError(error.message);

@@ -59,7 +59,14 @@ function SignInPage() {
         <p className="mt-3 text-ink/55">Pick up where your ideas left off.</p>
         <form onSubmit={handleSubmit} className="mt-9 space-y-5">
           {location.state?.message && (
-            <p className="rounded-2xl bg-green-50 p-3 text-sm text-green-700">
+            <p
+              role="status"
+              className={`rounded-2xl p-3 text-sm ${
+                location.state.tone === 'warning'
+                  ? 'bg-amber-50 text-amber-800'
+                  : 'bg-green-50 text-green-700'
+              }`}
+            >
               {location.state.message}
             </p>
           )}

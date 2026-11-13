@@ -7,7 +7,8 @@ import User from "../Models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import transporter from '../utils/mailer.js'
+import { sendEmail } from '../utils/mailer.js'
+import { createPasswordResetEmail, createWelcomeEmail } from '../utils/emailTemplates.js'
 import client from '../config/redis.js';
 
 
@@ -24,59 +25,24 @@ const createUser = async (req, res) => {
         let hashedPassword = await bcrypt.hash(password, 10)
         await User.create({ firstName, lastName, email, password: hashedPassword })
         await client.del("admin-users-v2")
-        res.status(201).json({ message: "signup successful" })
+        const appUrl = (
+            process.env.FRONTEND_URL || 'https://inkspireblog.vercel.app'
+        ).split(',')[0].trim().replace(/\/+$/, '')
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: "Welcome Email",
-            html: `
-               <!DOCTYPE html>
-                <html>
-                <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Welcome Email</title>
-                </head>
-                <body style="margin:0; padding:0; background-color:#f4f4f7; font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7; padding:40px 0;">
-                 <tr>
-                    <td align="center">
-                        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
-                        <tr>
-                            <td style="background:linear-gradient(135deg,#6366f1,#8b5cf6); padding:40px 30px; text-align:center;">
-                            <h1 style="color:#ffffff; margin:0; font-size:28px; font-weight:700;">Welcome Aboard 🎉</h1>
-                            <p style="color:#e0e7ff; margin:8px 0 0; font-size:15px;">We're thrilled to have you here</p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td style="padding:35px 30px;">
-                            <p style="font-size:16px; color:#333333; line-height:1.6; margin:0 0 24px;">Thanks for joining us! Your account has been successfully created.</p>
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                                <tr><td align="center">
-                                <a href="#" style="display:inline-block; background:#6366f1; color:#ffffff; text-decoration:none; font-size:16px; font-weight:600; padding:14px 32px; border-radius:8px;">Get Started →</a>
-                                </td></tr>
-                            </table>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td style="background-color:#f9fafb; padding:24px 30px; text-align:center; border-top:1px solid #eee;">
-                            <p style="font-size:12px; color:#bbbbbb; margin:0;">© 2026 Your Company. All rights reserved.</p>
-                            </td>
-                        </tr>
-                        </table>
-                    </td>
-                 </tr>
-                </table>
-                </body>
-                </html>
-            `
+        try {
+            await sendEmail({
+                to: email,
+                ...createWelcomeEmail({ firstName, appUrl })
+            })
+            return res.status(201).json({ message: "signup successful", emailSent: true })
+        } catch (emailError) {
+            console.error('Welcome email delivery failed:', emailError)
+            return res.status(201).json({
+                message: "Your account was created, but the welcome email could not be sent. You can still sign in.",
+                emailSent: false
+            })
         }
-
-        transporter.sendMail(mailOptions)
-            .then(info => console.log("Email sent: " + info.response))
-            .catch(err => console.log("Error while sending mail", err))
-   } catch (error) {
+    } catch (error) {
         res.status(500).json({ message: "something went wrong" })
         console.log(error);
     }
@@ -308,26 +274,22 @@ const forgotPassword = async (req, res) => {
         ).split(',')[0].trim().replace(/\/+$/, '')
         let resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(resetToken)}`
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: "Password Reset Request",
-            html: `
-                <h2>Password Reset Request</h2>
-                <p>You have requested to reset your password. Please click the link below to reset it:</p>
-                <a href="${resetUrl}" style="background: #6366f1; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
-                <p>This link will expire in 15 minutes.</p>
-            `
+        try {
+            await sendEmail({
+                to: email,
+                ...createPasswordResetEmail({ resetUrl })
+            })
+        } catch (emailError) {
+            console.error('Password reset email delivery failed:', emailError)
+            return res.status(503).json({
+                message: 'Unable to send a password reset email right now. Please try again later.'
+            })
         }
-        transporter.sendMail(mailOptions)
-            .then(info => console.log("Email sent: " + info.response))
-            .catch(err => console.log("Error while sending mail", err))
-        
-        res.status(200).json({ message: `password reset link sent to ${email}`})
-        
-    } 
-    catch (error) {
-        return res.status(404).json({message: "something went wrong"})
+
+        return res.status(200).json({ message: `password reset link sent to ${email}` })
+    } catch (error) {
+        console.error('Password reset request failed:', error)
+        return res.status(500).json({ message: 'Unable to process the password reset request.' })
     }
 }
 const resetPassword = async (req, res) => {
