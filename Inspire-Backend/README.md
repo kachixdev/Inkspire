@@ -14,4 +14,4 @@ Gmail SMTP uses an App Password, not OAuth. Render Free blocks outbound SMTP por
 
 Signup welcome messages and password-reset links both use the same Gmail SMTP mailer. Delivery fails with a configuration error if Gmail credentials are missing.
 
-Set `FRONTEND_URL` to the deployed frontend origin so welcome and password-reset links point to the right site. See `.env.example` for the variable names.
+Set `FRONTEND_URL` to the deployed frontend origin so welcome and password-reset links point to the right site.
