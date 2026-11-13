@@ -15,7 +15,7 @@ import client from '../config/redis.js';
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id)
 
 const getEmailDeliveryCode = (error) => {
-    if (error?.code === 'EAUTH' || [534, 535].includes(error?.responseCode)) {
+    if (error?.code === 'EAUTH' || [534, 535].includes(error?.responseCode) || error?.statusCode === 401) {
         return 'EMAIL_AUTH_FAILED'
     }
 
