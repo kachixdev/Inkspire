@@ -13,32 +13,36 @@ import CreateBlogPage from './pages/CreateBlogPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
 import NotFoundPage from './pages/NotFoundPage';
+import { Analytics } from '@vercel/analytics/react';
 
 function App() {
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/signin" element={<SignInPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/signin" element={<SignInPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        <Route path="/feed" element={<FeedPage />} />
-        <Route path="/blogs/:blogId" element={<BlogDetailsPage />} />
-        <Route path="/users/:userId" element={<ProfilePage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route path="/create" element={<CreateBlogPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/feed" element={<FeedPage />} />
+          <Route path="/blogs/:blogId" element={<BlogDetailsPage />} />
+          <Route path="/users/:userId" element={<ProfilePage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/create" element={<CreateBlogPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<AdminPage />} />
+          </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
-
-        <Route element={<AdminRoute />}>
-          <Route path="/admin" element={<AdminPage />} />
-        </Route>
-
-        <Route path="*" element={<NotFoundPage />} />
-      </Route>
-    </Routes>
+      </Routes>
+      <Analytics />
+    </>
   );
 }
 

@@ -11,6 +11,7 @@ import helmet from 'helmet'
 import cors from 'cors'
 let app = express()
 let port = process.env.PORT || 9090
+app.set('trust proxy', 1)
 
 app.use(helmet())
 app.use('/uploads', helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }))
@@ -33,14 +34,26 @@ mongoose.connect(process.env.MONGODB_URI)
 .then(()=>(console.log('MongoDB connected successfully')))
 .catch((err)=>console.log(`Error while connecting : ${err}`))
 
-const limit = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 5, // limit each IP to 5 requests per windowMs
-    // max: 100, // limit each IP to 100 requests per windowMs
-    message: 'Too many requests, try again later.'
-});
-  
-app.use(limit)
+const createRateLimiter = (maxRequests, message) => rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: maxRequests,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message,
+    handler: (_req, res, _next, options) => {
+        res.status(options.statusCode).json({ message: options.message })
+    }
+})
+const apiLimit = createRateLimiter(100, 'Too many API requests. Try again shortly.')
+const loginLimit = createRateLimiter(5, 'Too many login attempts. Try again in 15 minutes.')
+const signupLimit = createRateLimiter(5, 'Too many signup attempts. Try again in 15 minutes.')
+const passwordResetLimit = createRateLimiter(5, 'Too many password reset attempts. Try again in 15 minutes.')
+
+app.post('/api/users/login', loginLimit)
+app.post('/api/users/signup', signupLimit)
+app.post('/api/users/forgot-password', passwordResetLimit)
+app.post('/api/users/reset-password', passwordResetLimit)
+app.use('/api', apiLimit)
 app.use('/api/users', userRoutes)
 app.use('/api/posts', postRoutes)
 app.use('/api/comments', commentRoutes)

@@ -24,10 +24,20 @@ export async function apiRequest(path, options = {}) {
     credentials: "include",
   });
 
-  const data = response.status === 204 ? null : await response.json();
+  let data = null;
+  if (response.status !== 204) {
+    const responseBody = await response.text();
+    if (responseBody) {
+      const contentType = response.headers.get('content-type') || '';
+      data = contentType.includes('json')
+        ? JSON.parse(responseBody)
+        : responseBody;
+    }
+  }
 
   if (!response.ok) {
-    throw new Error(data?.message || `Request failed: ${response.status}`);
+    const message = typeof data === 'string' ? data : data?.message;
+    throw new Error(message || `Request failed: ${response.status}`);
   }
 
   return data;
