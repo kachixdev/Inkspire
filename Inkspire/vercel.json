@@ -7,6 +7,10 @@
     {
       "source": "/uploads/(.*)",
       "destination": "https://inkspire-izwl.onrender.com/uploads/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
     }
   ]
 }
