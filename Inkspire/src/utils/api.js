@@ -1,7 +1,16 @@
-const API_URL = "http://localhost:3030/api";
-const API_ORIGIN = new URL(API_URL).origin;
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:9090/api"
+    : "https://inkspire-izwl.onrender.com/api")
+).replace(/\/+$/, "");
+const API_ORIGIN = API_URL ? new URL(API_URL).origin : "";
 
 export async function apiRequest(path, options = {}) {
+  if (!API_URL) {
+    throw new Error("Set VITE_API_URL to the deployed backend API URL.");
+  }
+
   const headers = { ...options.headers };
   const isFormData =
     typeof FormData !== "undefined" && options.body instanceof FormData;

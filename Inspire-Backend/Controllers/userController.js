@@ -275,8 +275,8 @@ const login = async (req,res)=> {
 
         res.cookie('token', token, {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             path: '/',
             maxAge: 60 * 60 * 1000 //1 hour
         })
@@ -294,7 +294,10 @@ const forgotPassword = async (req, res) => {
         let checkEmail = await User.findOne({email})
         if(!checkEmail) return res.status(400).json({message: "account does not exist"})
         let resetToken = jwt.sign({id: checkEmail._id}, process.env.RESET_SECRET, {expiresIn: '15m'})
-        let resetUrl = `http://localhost:3000/reset-password/${resetToken}`
+        const frontendUrl = (
+            process.env.FRONTEND_URL || 'https://inkspireblog.vercel.app'
+        ).split(',')[0].trim().replace(/\/+$/, '')
+        let resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(resetToken)}`
 
         const mailOptions = {
             from: process.env.EMAIL_USER,

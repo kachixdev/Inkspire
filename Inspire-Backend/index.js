@@ -14,8 +14,14 @@ let port = process.env.PORT || 9090
 
 app.use(helmet())
 app.use('/uploads', helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }))
+const allowedOrigins = (
+    process.env.FRONTEND_URL || 'https://inkspireblog.vercel.app'
+).split(',').map(origin => origin.trim()).filter(Boolean)
+if (process.env.NODE_ENV !== 'production') {
+    allowedOrigins.push('http://localhost:5173')
+}
 app.use(cors({
-    origin:'https://inkspireblog.vercel.app',
+    origin: allowedOrigins,
     credentials:true
 }))
 app.use(express.static('src'))

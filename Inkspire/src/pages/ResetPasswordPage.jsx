@@ -28,7 +28,7 @@ function ResetPasswordPage() {
     try {
       await apiRequest('/users/reset-password', {
         method: 'POST',
-        body: JSON.stringify({ token, password: form.password }),
+        body: JSON.stringify({ token, newPassword: form.password }),
       });
       navigate('/signin', {
         replace: true,
