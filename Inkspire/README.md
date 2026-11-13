@@ -16,17 +16,18 @@ uses `http://localhost:9090/api` in development unless `VITE_API_URL` is set.
 
 ## Deploy frontend and backend
 
-Configure these environment variables in the hosting dashboards, then redeploy:
+The Vercel deployment proxies `/api` and `/uploads` to the Render service using
+`vercel.json`. This keeps browser requests on the frontend origin so authentication
+cookies are not treated as third-party cookies. No `VITE_API_URL` setting is needed
+in Vercel.
 
-- **Vercel (frontend):** `VITE_API_URL=https://inkspire-izwl.onrender.com/api`
 - **Render (backend):** `FRONTEND_URL=https://inkspireblog.vercel.app` and
   `NODE_ENV=production`
 
-The frontend defaults to the Render API URL above in production, and
-`VITE_API_URL` can override it. Set `FRONTEND_URL` to the Vercel frontend's
-deployed origin (no trailing slash). It controls credentialed CORS requests and
-the destination for password-reset links. The backend must also have its existing
-database and authentication environment variables configured in Render.
+Set `FRONTEND_URL` to the Vercel frontend's deployed origin (no trailing slash).
+It controls credentialed CORS requests and the destination for password-reset
+links. The backend must also have its existing database and authentication
+environment variables configured in Render.
 
 For local development, the API helper defaults to the backend's port `9090`.
 Set `FRONTEND_URL=http://localhost:5173` in the backend's local environment when
