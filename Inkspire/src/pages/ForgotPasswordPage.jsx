@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../utils/api';
@@ -11,6 +11,14 @@ function ForgotPasswordPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    const startedAt = Date.now();
+    const waitForMinimumProcessingTime = async () => {
+      const remaining = 2000 - (Date.now() - startedAt);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
+    };
+
     setSending(true);
     setError('');
 
@@ -19,8 +27,10 @@ function ForgotPasswordPage() {
         method: 'POST',
         body: JSON.stringify({ email }),
       });
+      await waitForMinimumProcessingTime();
       setSent(true);
     } catch (requestError) {
+      await waitForMinimumProcessingTime();
       console.error('Error requesting a password reset:', requestError);
       setError(requestError.message || 'Unable to send a reset link. Please try again.');
     } finally {
@@ -63,8 +73,17 @@ function ForgotPasswordPage() {
                   onChange={(event) => setEmail(event.target.value)}
                 />
               </div>
-              <button className="btn-primary w-full" type="submit" disabled={sending}>
-                {sending ? 'Sending link...' : 'Send reset link'} <ArrowRight size={17} />
+              <button className="btn-primary w-full" type="submit" disabled={sending} aria-busy={sending}>
+                {sending ? (
+                  <>
+                    <LoaderCircle className="animate-spin" size={17} />
+                    Sending link...
+                  </>
+                ) : (
+                  <>
+                    Send reset link <ArrowRight size={17} />
+                  </>
+                )}
               </button>
             </form>
           </>
